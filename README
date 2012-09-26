@@ -1,7 +1,7 @@
 Welcome!
 
-This repository(essential!) of feat planner which is located on http://aocfeats.com. It contains few javascript files with class feat descriptions and also feat planner itself. Feat planner is located in file -> featplanner.js and class feats are located in -> proper_class_name.js. 
+This repository contains javascript code(essential!) of feat planner which is located on http://aocfeats.com. You can find here few files with class feat descriptions and also feat planner itself. Feat planner is located in -> featplanner.js and class feats are located in -> proper_class_name.js. 
 
 Feat planner code is release under Apache 2 licence so feel free to use it for your needs.
 
-And small thanks here to Funcom for creating this nice game (http://ageofconan.com)!
+Thanks here to Funcom for creating this nice game (http://www.ageofconan.com)!

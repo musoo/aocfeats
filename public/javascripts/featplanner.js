@@ -14,10 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 *******************************************************************************/
 
-function Feat(tree, row, column, imgIndex, availablePoints, parent, featDescription) {
+function Feat(id, tree, row, column, imgIndex, availablePoints, parent, featDescription) {
     if (row == undefined || column == undefined || imgIndex == undefined || availablePoints == undefined)
         return undefined;
 
+    this.id = id;
     this.tree = tree;
     this.row = row;
     this.column = column;
@@ -28,122 +29,176 @@ function Feat(tree, row, column, imgIndex, availablePoints, parent, featDescript
     this.size = 38;
     this.description = featDescription;
     this.description.parent = this;
-
-    this.IncreaseUsedPoints = function () {
-        var p = this.usedPoints + 1;
-        if (p <= this.availablePoints) {
-            this.usedPoints = p;
-            return true;
-        }
-
-        return false;
-    }
-
-    this.DecreaseUsedPoints = function () {
-        var p = this.usedPoints - 1;
-        if (p >= 0) {
-            this.usedPoints = p;
-            return true;
-        }
-
-        return false;
-    }
-
-    this.GetDescription = function () {
-        return this.description.GetDescription();
-    }
-
-    this.PointsNeeded = function () {
-        return (this.row - 1) * 5;
-    }
-
-    this.HasAnyPoints = function () {
-        return this.usedPoints != 0;
-    }
-
-    this.Points = function () {
-        return this.usedPoints;
-    }
-
-    this.IsFullyFitted = function () {
-        return this.usedPoints == this.availablePoints;
-    }
 }
+
+require(["dojo/string"], 
+function(string) {
+
+Feat.prototype.SortId = function() {
+    var shouldAdd = parent != null && parent[0] == this.row && parent[1] > this.column;
+    return new Number(this.tree.toString() + this.row.toString() + (shouldAdd ? parent[1] : this.column).toString() + (shouldAdd ? '1' : '0'));
+}
+
+Feat.prototype.Id = function() {
+    return string.pad((this.id + this.usedPoints - 1).toString(16), 5, '0');
+}
+
+
+Feat.prototype.RawId = function() {
+    return this.id.toString().substr(0, this.id.toString().length - 1)
+}
+
+Feat.prototype.IncreaseUsedPoints = function (fullyFit, maxPoints) {
+    var p = 0;
+    if (fullyFit) {
+        p = this.usedPoints + (maxPoints <= this.availablePoints ? maxPoints : this.availablePoints - this.usedPoints);
+    } else {
+        p = this.usedPoints + 1;
+    }
+
+    if (p <= this.availablePoints) {
+        this.usedPoints = p;
+        return true;
+    }
+
+    return false;
+}
+
+Feat.prototype.DecreaseUsedPoints = function () {
+    var p = this.usedPoints - 1;
+    if (p >= 0) {
+        this.usedPoints = p;
+        return true;
+    }
+
+    return false;
+}
+
+Feat.prototype.GetDescription = function () {
+    return this.description.GetDescription();
+}
+
+Feat.prototype.PointsNeeded = function () {
+    return (this.row - 1) * 5;
+}
+
+Feat.prototype.HasAnyPoints = function () {
+    return this.usedPoints != 0;
+}
+
+Feat.prototype.Points = function () {
+    return this.usedPoints;
+}
+
+Feat.prototype.IsFullyFitted = function () {
+    return this.usedPoints == this.availablePoints;
+}
+
+}); //!-- require
 
 var FeatDescription = function (title, modificators, description) {
     this.title = title;
     this.parent = null;
     this.modificators = modificators;
     this.description = description;
-
-    this.GetDescription = function () {
-        var result = "<div class='title'>" + this.title + "</div>";
-        if (this.parent.row != null) {
-            result += "<div class='requirements'><div class='title'>Requirements</div>";
-            // requirements
-            var lvl = 0;
-            if (this.parent.row < 6) {
-                lvl = (this.parent.row + 1) * 5;
-            } else {
-                lvl = 30 + (this.parent.row - 5) * 10;
-            }
-
-            result += "<div class='r'>You must be at least level " + lvl + "</div>";
-            if (this.parent.row > 1) {
-                result += "<div class='r'>" + ((this.parent.row - 1) * 5) + " ranks purchased in this Feat Tree</div>";
-            }
-
-            result += "</div>";
-        }
-
-        // modifications
-        if (this.modificators.length > 0) {
-            var obj = this;
-            var points = this.parent.Points();
-
-            // display for current rank
-            if (points > 0) {
-                var addCode = '';
-                require(['dojo/_base/array'], function (array) {
-                    array.forEach(obj.modificators, function (e, i) {
-                        var sval = e.s[points - 1] || 0;
-                        if (sval != 0)
-                            addCode += "<div class='m'><span class='" + (sval >= 0 ? 'green' : 'red') + "'>" + (sval > 0 ? '+' : '') + sval + (e.suf || '') + "</span> " + e.t + "</div>";
-                    });
-                });
-
-                if (addCode != '')
-                    result += "<div class='modifications'><div class='title'>Modifications</div>" + addCode + "</div>";
-            }
-
-            // display for next rank
-            if (!this.parent.IsFullyFitted()) {
-                var addCode = '';
-                require(['dojo/_base/array'], function (array) {
-                    array.forEach(obj.modificators, function (e, i) {
-                        var sval = e.s[points];
-                        if (sval != 0)
-                            addCode += "<div class='m'><span class='" + (sval >= 0 ? 'green' : 'red') + "'>" + (sval > 0 ? '+' : '') + sval + (e.suf || '') + "</span> " + e.t + "</div>";
-                    });
-                });
-
-                if (addCode != '')
-                    result += "<div class='modifications'><div class='title'>Next rank</div>" + addCode + "</div>";
-            }
-        }
-
-        result += "<div class='description'><div class='title'>Description</div>" + this.description + "</div>";
-        return result;
-    }
 }
 
+require(['dojo/_base/array'],
+function (array) {
+
+FeatDescription.prototype.GetDescription = function () {
+    var result = "<div class='title'>" + this.title + "</div>";
+    if (this.parent.row != null) {
+        result += "<div class='requirements'><div class='title'>Requirements</div>";
+        // requirements
+        var lvl = 0;
+        if (this.parent.row < 6) {
+            lvl = (this.parent.row + 1) * 5;
+        } else {
+            lvl = 30 + (this.parent.row - 5) * 10;
+        }
+
+        result += "<div class='r'>You must be at least level " + lvl + "</div>";
+        if (this.parent.row > 1) {
+            result += "<div class='r'>" + ((this.parent.row - 1) * 5) + " ranks purchased in this Feat Tree</div>";
+        }
+
+        result += "</div>";
+    }
+
+    // modifications
+    if (this.modificators.length > 0) {
+        var obj = this;
+        var points = this.parent.Points();
+
+        // display for current rank
+        if (points > 0) {
+            var addCode = '';
+            array.forEach(obj.modificators, function (e, i) {
+                var sval = e.s[points - 1] || 0;
+                if (sval != 0)
+                    addCode += "<div class='m'><span class='" + (sval >= 0 ? 'green' : 'red') + "'>" + (sval > 0 ? '+' : '') + sval + (e.suf || '') + "</span> " + e.t + "</div>";
+            });
+
+            if (addCode != '')
+                result += "<div class='modifications'><div class='title'>Modifications</div>" + addCode + "</div>";
+        }
+
+        // display for next rank
+        if (!this.parent.IsFullyFitted()) {
+            var addCode = '';
+            array.forEach(obj.modificators, function (e, i) {
+                var sval = e.s[points];
+                if (sval != 0)
+                    addCode += "<div class='m'><span class='" + (sval >= 0 ? 'green' : 'red') + "'>" + (sval > 0 ? '+' : '') + sval + (e.suf || '') + "</span> " + e.t + "</div>";
+            });
+
+            if (addCode != '')
+                result += "<div class='modifications'><div class='title'>Next rank</div>" + addCode + "</div>";
+        }
+    }
+
+    result += "<div class='description'><div class='title'>Description</div>" + this.description + "</div>";
+    result += "<div class='help'>ctrl + left click - add all points</br>left click - add point</br>right click - remove point</div>";
+    return result;
+}
+
+}); //!-- require
+
+
 function FeatPlanner(settings) {
+
+    var _pointHeight = 16;
+    var _pointWidths = [13, 10, 10, 9, 12]
+    var _locked = false;
+
     var feats = null;
-    var usedPoints = null;
+    //var usedPoints = null;
     var emptyLink = '00000000000000000000000000000000000000000000000000000000000000000000000';
 
+    var UsedPoints = function(featTree) {
+        var total = 0;
+        require(["dojo/_base/array"], function (array) {
+            array.forEach(feats, function (entry, i) {
+                if (entry.tree == featTree)
+                    total += entry.usedPoints;
+            });
+        });
+        return total;
+    }
+
     var TotalUsedPoints = function () {
-        return usedPoints[1] + usedPoints[2] + usedPoints[3];
+        var total = 0;
+        require(["dojo/_base/array"], function (array) {
+            array.forEach(feats, function (entry, i) {
+                total += entry.usedPoints;
+            });
+        });
+        return total;
+    }
+
+    var TotalAvailablePoints = function() { 
+        return 79 - TotalUsedPoints();   
     }
 
     var ShowPoints = function () {
@@ -152,21 +207,19 @@ function FeatPlanner(settings) {
             q('#used-points').text(total);
             q('#available-points').text(79 - total);
 
-            q('#tree1').text(usedPoints[1]);
-            q('#tree2').text(usedPoints[2]);
-            q('#tree3').text(usedPoints[3]);
+            q('#tree1').text(UsedPoints(1));
+            q('#tree2').text(UsedPoints(2));
+            q('#tree3').text(UsedPoints(3));
         });
     }
 
-    var CreateLink = function () {
-        require(['dojo/query', 'dojo/_base/array', 'dojo/NodeList-manipulate'], function (q, a) {
-            var vals = q('#link').text().split('/');
-            ;
-            var newLink = '';
-            for (i = 0; i < vals.length - 1; i++) {
-                newLink += vals[i] + '/';
-            }
+    var CreateLink = function() { 
+        CreateIngameLink();
+    }
 
+    var CreateOutOfGameLink = function () {
+        require(['dojo/query', 'dojo/_base/array', 'dojo/NodeList-manipulate'], function (q, a) {
+            var newLink = q('#link-base').text();
             var featVals = '';
             a.forEach(feats, function (e, i) {
                 featVals += e.Points();
@@ -178,14 +231,38 @@ function FeatPlanner(settings) {
         });
     }
 
-    var AddPoint = function (idx) {
-        usedPoints[idx] += 1;
+    var CreateIngameLink = function () {
+        require(['dojo/query', 'dojo/_base/array', 'dojo/NodeList-manipulate'], function (q, a) {
+            var featVals = q('#link-id').text();
+            var feated = [];
+            a.forEach(feats, function (e, i) {
+                if (e.HasAnyPoints()) {
+                    feated[e.SortId()] = e.Id();
+                }
+            });
+
+            a.forEach(feated, function(e, i) {
+                if (typeof e != 'undefined')
+                    featVals += e;
+            });
+
+            var oogLink = q('#link-base').text() + featVals;
+            var oogDescription = q('.feat-tree:nth-child(1) th[desc]').text() + ' | ' + q('.feat-tree:nth-child(2) th[desc]').text() + ' | ' + q('.feat-tree:nth-child(3) th[desc]').text();
+            q('#link').val(featVals);
+            q('#linkbb').val('[url='+ oogLink +']' + oogDescription + '[/url]');
+            q('#linkhtml').val("<a href='"+ oogLink +"'>" + oogDescription + "</a>");
+            q('#linkurl').val(oogLink);
+        });
+    }
+
+    var AddPoint = function (feat) {
+        //usedPoints[feat.tree] += added;
         ShowPoints();
         CreateLink();
     }
 
     var RemovePoint = function (idx) {
-        usedPoints[idx] -= 1;
+        //usedPoints[idx] -= 1;
         ShowPoints();
         CreateLink();
     }
@@ -215,43 +292,52 @@ function FeatPlanner(settings) {
             + 'background-position: ' + (enabled ? (feat.IsFullyFitted() ? '88px' : '44px') : '0px') + ' 0px;'
             + '"></div>'
             + '<div class="feat" style="'
-            + (feat.row == 1 ? 'left: 30px;' : '') + 'background-image: url('
+            + (feat.row == 1 ? 'left: 30px;' : '') 
+            + 'background-image: url('
             + (feat.tree == 3 ? settings.generalTree : settings.classTree) + '); background-position: '
-            + (-feat.imgIndex * feat.size).toString() + 'px ' + (feat.PointsNeeded() <= usedPoints[feat.tree] ? feat.size : 0)
-            + 'px;"></div><div class="an"'
-            + (feat.row == 1 ? ' style="left: 30px;"' : '') + '>';
-
-        if (feat.parent != null) {
-            var parent = FindParent(feat);
-
-            if (feat.column == parent.column && feat.row != parent.row) {
-                var diff = (feat.row - parent.row);
-                var offset = (diff > 1 ? 20 : 0);
-                fateCode += '<div style="position: absolute; left: -5px; top: -'
-                    + (32 + (diff * 38) + offset) + 'px;'
-                    + 'px; background-image: url(/assets/images/arrow_vertical.png); width: 48px; height: '
-                    + ((diff * 38) + offset)
-                    + 'px; z-index: 0;"></div>';
-            } else if (feat.row == parent.row && feat.column > parent.column) {
-                fateCode += '<div style="position: absolute; top: -38px; left: -20px; background-image: url(/assets/images/arrow_right.png); height: 25px; width: 32px; z-index: 0;"></div>';
-            } else if (feat.row == parent.row && feat.column < parent.column) {
-                fateCode += '<div style="position: absolute; top: -38px; left: 35px; background-image: url(/assets/images/arrow_left.png); height: 37px; width: 32px; z-index: 0;"></div>';
-            }
-
-        }
-
-        fateCode += '<div class="points" style="'
-            + 'width: ' + feat.availablePoints * 9 + 'px;'
-            + 'left: ' + (feat.row == 1 ? '-3' : ((5 - feat.availablePoints) * 4) + 1) + 'px;'
-            + 'background-position: 0px ' + (-feat.usedPoints * 6) + 'px;"></div>'; //<div class="s">'
-        //+ feat.usedPoints + '</div><div class="a">/' + feat.availablePoints + '</div></div></div>';
+            + (-feat.imgIndex * feat.size).toString() + 'px ' + (feat.PointsNeeded() <= UsedPoints(feat.tree) ? feat.size : 0)
+            + 'px;"></div>';
 
         return fateCode;
     }
 
+    var GetArrowCode = function(feat) {
+        var fateCode = '';
+
+        var parent = FindParent(feat);
+
+        if (feat.column == parent.column && feat.row != parent.row) {
+            var diff = (feat.row - parent.row);
+            var offset = (diff > 1 ? 10 : 0);
+            fateCode += '<div style="position: absolute; left: -4px; top: -'
+                + ((diff * 38) + offset) + 'px;'
+                + 'background-image: url(/assets/images/arrow_vertical.png); width: 48px; height: '
+                + ((diff * 38) + offset + 10)
+                + 'px; z-index: 0;"></div>';
+        } else if (feat.row == parent.row && feat.column > parent.column) {
+            fateCode += '<div style="position: absolute; top: 0px;left: -20px; background-image: url(/assets/images/arrow_right.png); height: 25px; width: 32px; z-index: 0;"></div>';
+        } else if (feat.row == parent.row && feat.column < parent.column) {
+            fateCode += '<div style="position: absolute; top: 0px;left: 38px; background-image: url(/assets/images/arrow_left.png); height: 37px; width: 32px; z-index: 0;"></div>';
+        }
+
+        return fateCode;
+    }
+
+    var GetPointsCode = function(feat) { 
+        var width = 0;
+        for (var i = 0; i < feat.availablePoints; i++)
+            width += _pointWidths[i];
+
+        return '<div class="points" style="'
+            + 'width: ' + width.toString() + 'px;'
+            + 'left: ' + (feat.row == 1 ? 22 : (((4 - feat.availablePoints) * 4) + 0)) + 'px;'
+            + 'top: 40px;'
+            + 'background-position: 0px ' + (-feat.usedPoints * _pointHeight) + 'px;">';
+    }
+
     var HideDescription = function (e) {
-        require(['dojo/query', 'dojo/NodeList-manipulate'], function (q) {
-            q('#feat-description').style('display', 'none');
+        require(['dojo/dom', 'dojo/dom-style'], function (dom, style) {
+           style.set(dom.byId('feat-description'), 'display', 'none');
         });
     }
 
@@ -260,32 +346,46 @@ function FeatPlanner(settings) {
         if (item == undefined)
             return;
 
-        require(['dojo/dom-class', 'dojo/query', 'dojo/dom-geometry', "dojo/window", 'dojo/NodeList-manipulate'], function (dc, q, geo, w) {
-            if (!dc.contains(e.target, "feat") && !dc.contains(e.target, "border"))
-                return;
+        require(['dojo/dom', 'dojo/dom-class', 'dojo/query', 'dojo/dom-geometry', "dojo/window", 'dojo/NodeList-manipulate'], function (dom, dc, q, geo, w) {
 
             var id = item.id;
             var idx = new Number(id);
 
             var feat = feats[idx];
             var desc = q('#feat-description');
-            desc.style('top', '');
-            desc.style('display', 'none');
+            //desc.style('top', '-38px');
+            //desc.style('left', '60px');
+            //desc.style('display', 'none');
             desc.innerHTML(feats[idx].GetDescription());
-            q('#' + idx + ' div.an').prepend(desc);
+            var featBox = dom.byId(idx.toString());
+            //q('#' + idx + ' div.an').prepend(desc);
 
             desc.style('display', 'block');
-            var position = geo.position(desc[0]);
+
+            var featPosition = geo.position(featBox);
+            var position = geo.position(dom.byId('feat-description'));
             var box = w.getBox();
 
-            if ((position.y + position.h) > box.h) {
-                desc.style('top', new Number(desc.style('top')) + (box.h - (position.y + position.h)) + 'px');
+            
+
+            var newX = featPosition.x + 60 + (feat.row == 1 ? 25 : 0) ;
+            var newY = featPosition.y;
+
+            if ((newY + position.h) > box.h) {
+                newY = box.h - position.h - 10;
             }
+
+            if ((newX + position.w) > box.w) {
+                newX = newX - 375;
+            }
+
+            desc.style('top', newY + 'px');
+            desc.style('left', newX + 'px');
         });
     }
 
     var IsEnabled = function (feat) {
-        return (feat.PointsNeeded() <= usedPoints[feat.tree] && (feat.parent == null || (feat.parent != null && FindParent(feat).IsFullyFitted())));
+        return (feat.PointsNeeded() <= UsedPoints(feat.tree) && (feat.parent == null || (feat.parent != null && FindParent(feat).IsFullyFitted())));
     }
 
     var ToggleFeat = function (feat) {
@@ -323,10 +423,11 @@ function FeatPlanner(settings) {
 
     var CheckImages = function (feat) {
         require(['dojo/_base/array'], function (a) {
+            var totalUsed = TotalUsedPoints();
             a.forEach(feats, function (item, idx) {
-                if (TotalUsedPoints() < 79) {
+                if (totalUsed < 79) {
                     ToggleFeat(item);
-                } else if (TotalUsedPoints() == 79) {
+                } else if (totalUsed == 79) {
                     DisableIfNoPoints(item);
                 }
             });
@@ -336,42 +437,64 @@ function FeatPlanner(settings) {
     }
 
     var LeftClick = function (e) {
+        e.preventDefault();
+
+        if (_locked)
+            return;
+
         var item = e.fromTarget || e.currentTarget;
         if (item == undefined)
-            return;
+            return false;
+
+        var fullFit = e.ctrlKey;
 
         require(['dojo/query', 'dojo/NodeList-manipulate'], function (query) {
             var id = new Number(item.id);
 
             var feat = feats[id];
-            if ((feat.PointsNeeded() > usedPoints[feat.tree]) ||
+            if ((feat.PointsNeeded() > UsedPoints(feat.tree)) ||
                 (TotalUsedPoints() >= 79) ||
                 (feat.parent != null && !FindParent(feat).IsFullyFitted()))
                 return false;
 
-            if (feat.IncreaseUsedPoints()) {
-                AddPoint(feat.tree);
+            if (feat.IncreaseUsedPoints(fullFit, TotalAvailablePoints())) {
+                AddPoint(feat);
 
-                var node = query.NodeList();
-                node.push(item);
+                //var node = query.NodeList();
+                //node.push(item);
 
                 query('#feat-description').innerHTML(feats[id].GetDescription());
-                UpdatePointsAndBorder(node, feat);
+                UpdatePointsAndBorder(item, feat);
                 CheckImages(feat);
             }
-        });
+
+            return false
+;        });
+
 
         return false;
     }
 
-    var UpdatePointsAndBorder = function (node, feat) {
-        require(['dojo/query'], function (query) {
-            node.query('div.points').style('backgroundPosition', '0px ' + (-feat.usedPoints * 6) + 'px');
-            node.query('div.border').style("backgroundPosition", (IsEnabled(feat) ? (feat.IsFullyFitted() ? '88px' : '44px') : '0px'));
+    var UpdatePointsAndBorder = function (node, feat, ommitCheckingEnabled) {
+        ommitCheckingEnabled = typeof ommitCheckingEnabled != 'undefined' ? ommitCheckingEnabled : false;
+        require(['dojo/query', 'dojo/dom-style'], function (query, style) {
+            style.set(node.nextSibling, 'backgroundPosition', '0px ' + (-feat.usedPoints * _pointHeight) + 'px');
+            if (ommitCheckingEnabled) {
+                query('div.border', node).style("backgroundPosition", feat.row == 1 ? '44px' : '0px');
+            } else {
+                query('div.border', node).style("backgroundPosition", 
+                    IsEnabled(feat) ? (feat.IsFullyFitted() ? '88px' : '44px') : '0px'
+                );
+            }
         });
     }
 
     var RightClick = function (e) {
+        e.preventDefault();
+
+        if (_locked)
+            return;
+
         var item = e.fromTarget || e.currentTarget;
         if (item == undefined)
             return false;
@@ -380,10 +503,13 @@ function FeatPlanner(settings) {
             var id = new Number(item.id);
 
             var feat = feats[id];
+            var feated = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];      // number of points on each level
             var allowed = true;
             var sum = 0;
             var childEmpty = true;
             var maxReq = 0;
+            var maxReqFeated = 0;
+            var allLevelsOk = true;
 
             require(["dojo/_base/array"], function (array) {
                 array.forEach(feats, function (entry, i) {
@@ -400,18 +526,36 @@ function FeatPlanner(settings) {
 
                         if (entry.HasAnyPoints() && entry.PointsNeeded() > maxReq)
                             maxReq = entry.PointsNeeded();
+
+                        for (var i = 1; i <= 9; i++) {
+                            if (entry.row <= i) {
+                                feated[i] += entry.Points();
+                            }
+                        }
+                    }
+                });
+
+                var topFeat = maxReq / 5;
+                for (var i = feat.row; i <= topFeat; i++) {
+                    var xreq = i * 5;
+                    if (feated[i] <= xreq) {
+                        allLevelsOk = false;
+                        break;
+                    }
+                }               
+
+                array.forEach(feats, function (entry, i) {
+                    if (entry.tree == feat.tree && entry.PointsNeeded() == maxReq) {
+                        maxReqFeated = maxReqFeated + entry.Points();
                     }
                 });
             });
 
-            if (childEmpty && (allowed || (!allowed && sum > (feat.PointsNeeded() + 5)))
-                && (feat.PointsNeeded() == maxReq || maxReq < usedPoints[feat.tree] - 1) && feat.DecreaseUsedPoints()) {
+            if (allLevelsOk && childEmpty && (allowed || (!allowed && sum > (feat.PointsNeeded() + 5)))
+                && (feat.PointsNeeded() == maxReq || maxReq < UsedPoints(feat.tree) - maxReqFeated) && feat.DecreaseUsedPoints()) {
                 RemovePoint(feat.tree);
-                var nl = query.NodeList();
-                nl.push(item);
-                UpdatePointsAndBorder(nl, feat);
+                UpdatePointsAndBorder(item, feat);
                 query('#feat-description').innerHTML(feats[id].GetDescription());
-
                 CheckImages(feat);
             }
         });
@@ -419,11 +563,152 @@ function FeatPlanner(settings) {
         return false;
     }
 
-    var Clear = function () {
-        Initialize(false);
+    var Clear = function (tree) {
+
+        if (_locked)
+            return;
+
+        require([
+            'dojo/_base/array', 
+            'dojo/dom'], 
+        function(array, dom) {
+            if (typeof tree == 'undefined') {
+                array.forEach(feats, function (e, i) {
+                    e.usedPoints = 0;
+                    var node = dom.byId(i.toString());
+                    UpdatePointsAndBorder(node, e, true);               
+                });
+            } else {
+                array.forEach(feats, function (e, i) {
+                    if (e.tree == tree)
+                    {
+                        e.usedPoints = 0;
+                        var node = dom.byId(i.toString());
+                        UpdatePointsAndBorder(node, e, true);               
+                    }
+                });
+            }
+        });
+
         ShowPoints();
         CheckImages();
         CreateLink();
+    }
+
+    var GetChoppedIngameLink = function(link) {
+        var result = [];
+        link = link.substring(3, link.length)
+        for (var i = 0; link.length > 0; i++) {
+            var value = link.substring(0, 5);
+            var intValue = parseInt(value, 16);
+            result[i] = intValue.toString();
+            link = link.substring(5, link.length)
+        }
+
+        return result;
+    }
+
+    var IsValid = function(link) {
+        if (link == "")
+            return true;
+
+        if (link.length < 3)
+            return false;
+
+        if (link.indexOf(document.getElementById('link-id').innerHTML) == 0) {     // hex link
+            var sublink = link.substring(3, link.length)
+            for (var i = 0; sublink.length > 0; i++) {
+                var value = sublink.substring(0, 5);
+                if (value.length != 5) return false;
+                var intValue = parseInt(value, 16);
+                if (isNaN(intValue)) return false;
+                sublink = sublink.substring(5, link.length)
+            }
+        } else if (link.length == feats.length) {                   // decimal link
+            for (var i = 0; i < link.length; i++) {
+                var intVal = parseInt(link[i]);
+                if (isNaN(intVal)) return false;
+                if (!(intVal >= 0 && intVal <= 5)) return false;
+            }
+        } else return false;
+
+        return true;
+    }
+
+    var SetupZeroClipboard = function() {
+        require(["dojo/dom", "dojo/html", "dojo/on"], function(dom, html, on) {
+            ZeroClipboard.setMoviePath(settings.zeroClipboardPath || alert('Could not load ZeroClipboard library!'));
+            var clip1 = new ZeroClipboard.Client();
+            clip1.addEventListener("onMouseDown", function (event) {
+                clip1.setText(dom.byId('link').value);
+            });
+            clip1.glue('copykey');
+
+            var clip2 = new ZeroClipboard.Client();
+            clip2.addEventListener("onMouseDown", function (event) {
+                clip2.setText(dom.byId('linkbb').value);
+            });
+            var html2 = clip2.getHTML(59,24);
+            html.set(dom.byId('copybb-cont'), html2);
+
+            var clip3 = new ZeroClipboard.Client();
+            clip3.addEventListener("onMouseDown", function (event) {
+                clip3.setText(dom.byId('linkhtml').value);
+            });
+            var html3 = clip3.getHTML(59,24);
+            html.set(dom.byId('copyhtml-cont'), html3);
+
+            var clip4 = new ZeroClipboard.Client();
+            clip4.addEventListener("onMouseDown", function (event) {
+                clip4.setText(dom.byId('linkurl').value);
+            });
+            var html4 = clip4.getHTML(59,24);
+            html.set(dom.byId('copyurl-cont'), html4);
+
+            on(window, "resize", function () {
+                clip1.reposition();
+                clip2.reposition();
+                clip3.reposition();
+                clip4.reposition();
+            });
+        });
+    }
+
+    var SetupSelectionOnLink = function() {
+        require(["dojo/query"], function(query) {
+            query('#link, #linkbb, #linkurl, #linkhtml, #linksurl').on('click, focus', function(e) {
+                e.target.select();
+            });
+
+            query('#link, #linkbb, #linkurl, #linkhtml, #linksurl').on('mouseup', function(e) {
+                e.preventDefault();
+            });
+        });
+    }
+
+    var SetupButtonHighlight = function() {
+        require(["dojo/query", "dojo/mouse", "dojo/dom", 'dojo/_base/fx'], function (query, mouse, dom, fx) {
+            var movieDict = {'ZeroClipboardMovie_1':'copykey', 
+                             'ZeroClipboardMovie_2':'copybb', 
+                             'ZeroClipboardMovie_3':'copyhtml', 
+                             'ZeroClipboardMovie_4':'copyurl'}
+
+            query('#ZeroClipboardMovie_1, #ZeroClipboardMovie_2, #ZeroClipboardMovie_3, #ZeroClipboardMovie_4').on(mouse.enter, function(e) {
+                fx.anim(dom.byId(movieDict[e.target.id]), { "backgroundColor": "#105085" });
+            });
+
+            query('#ZeroClipboardMovie_1, #ZeroClipboardMovie_2, #ZeroClipboardMovie_3, #ZeroClipboardMovie_4').on(mouse.leave, function(e) {
+                fx.anim(dom.byId(movieDict[e.target.id]), { "backgroundColor": "#091F31" });
+            }); 
+
+            query('#lock-button').on(mouse.enter, function(e) {
+                fx.anim(e.target, { "backgroundColor": "#4B2020" });
+            }); 
+            
+            query('#lock-button').on(mouse.leave, function(e) {
+                fx.anim(e.target, { "backgroundColor": "#0A0501" });
+            }); 
+        });
     }
 
     var Initialize = function (load) {
@@ -433,47 +718,171 @@ function FeatPlanner(settings) {
         usedPoints = [0, 0, 0, 0];
         feats = classFeats().concat(generalFeats());
 
-        require(['dojo/_base/array', 'dojo/query', "dojo/dom", 'dojo/NodeList-manipulate', 'dojo/on', 'dojo/domReady!'], function (array, query, dom, domc, on) {
+        require([
+            "dojo/fx/Toggler",
+            'dojo/_base/array', 
+            'dojo/query', 
+            "dojo/dom", 
+            'dojo/NodeList-manipulate', 
+            'dojo/on', 
+            'dojo/mouse',
+            'dojo/dom-construct',
+            'dojo/dom-style',
+            'dojo/html',
+            'dojo/domReady!'], 
+        function (Toggler,
+                  array,
+                  query, 
+                  dom, 
+                  domc, 
+                  on, 
+                  mouse,
+                  domConstruct,
+                  style,
+                  html) {
+
+            var toggler = new Toggler({
+                node: dom.byId("links")
+            });
+
+            var linkId = query('#link-id').text();
+            var valid = IsValid(settings.link);
+            var ingame = settings.link.indexOf(linkId) == 0;
+
             array.forEach(feats, function (e, i) {
-                var innerDiv = query('div#feat-planner table').at(e.tree - 1).query('tr').at(e.row).query('td').at(e.column - 1).query('div')[0];
+                var innerDiv = query('div#feat-planner table').at(e.tree - 1).query('tr').at(e.row).query('td').at(e.column - 1).query('div.fh')[0];
 
-                if (load) {
-                    var p = new Number(settings.link[i]);
-                    e.usedPoints = p;
-                    usedPoints[e.tree] += p;
+                 if (ingame) {
+                    e.usedPoints = 0;
 
-                    innerDiv.id = i;
-                    innerDiv.onmouseover = ShowDescription;
-                    innerDiv.onmouseout = HideDescription;
-                    innerDiv.onclick = LeftClick;
-                    innerDiv.oncontextmenu = RightClick;
+                    if (valid) {                // init only when valid
+                        var featVals = GetChoppedIngameLink(settings.link)
+                        array.forEach(featVals, function(fe) {
+                            if (fe.indexOf(e.RawId()) == 0) {
+                                var toAdd = parseInt(fe.substring(fe.length - 1, fe.length)) + 1;
+                                e.usedPoints = toAdd;
+                            }
+                        });
+                    }
+                } else {
+                    e.usedPoints = 0;
+
+                    if (settings.link != "" && valid) {
+                        var numb = new Number(settings.link[i]);
+                        if (!isNaN(numb) && numb >= 0 && numb <= 5)
+                            e.usedPoints = numb;
+                    }
                 }
 
+                innerDiv.id = i;
+                
+                on(innerDiv, mouse.enter, ShowDescription);
+                on(innerDiv, mouse.leave, HideDescription);
+                on(innerDiv, 'click', LeftClick);
+                on(innerDiv, 'contextmenu', RightClick);
+
+
                 innerDiv.innerHTML = FeatCellCode(e);
+                if (e.parent != null) 
+                    domConstruct.place(GetArrowCode(e), innerDiv, 'after');
+
+                domConstruct.place(GetPointsCode(e), innerDiv, 'after');
             });
+
+            if (!valid) {
+                dom.byId('flash').innerHTML = '*Provided build link is invalid* - ';
+            }
 
             query('#feat-planner-container').after('<div id="feat-description"></div>');
 
-            if (load) {
-                ZeroClipboard.setMoviePath(settings.zeroClipboardPath || alert('Could not load ZeroClipboard library!'));
-                var clip = new ZeroClipboard.Client();
-                clip.addEventListener("onMouseDown", function () {
-                    clip.setText(dom.byId('link').innerHTML);
-                });
-                clip.glue('link');
+            SetupZeroClipboard();
+            SetupSelectionOnLink();
+            SetupButtonHighlight();
+            
+            var chars = ['&nbsp;▼', '&nbsp;▲'];
+            on(dom.byId('link-toggle'), 'click', function(e) {
+                var opacity = style.get(dom.byId("links"), 'opacity');
+                if (opacity == '0') {
+                    style.set(dom.byId('links'), 'display', 'block');
+                    toggler.show(); 
+                    html.set(dom.byId('link-toggle-arrow'), chars[0]);
+                } else {
+                    toggler.hide();
+                    style.set(dom.byId('links'), 'display', 'none');
+                    html.set(dom.byId('link-toggle-arrow'), chars[1]);
+                }
 
-                on(window, "resize", function () {
-                    clip.reposition();
-                });
+                /*
+                clip2.reposition();
+                clip3.reposition();
+                clip4.reposition();
+                */
+            });
 
-                query('#clear-button').on('click', Clear);
-                ShowPoints();
-                CheckImages();
-                CreateLink();
+            on (dom.byId('getsurl'), 'click', function() {
+                require(["dojo/request/xhr", "dojo/dom-class"], function(xhr, domClass) {
+                    domClass.add(dom.byId('linksurl'), 'linksurl');
+                    xhr(settings.shorten + encodeURI(dom.byId('linkurl').value), { 
+                        handleAs:"json" 
+                    }).then(
+                    // success
+                    function(data) {
+                        dom.byId('linksurl').value = data["shorturl"];
+                        domClass.remove(dom.byId('linksurl'), 'linksurl');
+                    },
+                    //error
+                    function(err) {
+                        domClass.remove(dom.byId('linksurl'), 'linksurl');
+                    });
+                });
+            });
+
+            // initialize locked status
+            _locked = TotalUsedPoints() != 0;
+            if (_locked) {
+                LockBuild(dom.byId('lock-button'));                
             }
+
+            on(dom.byId('lock-button'), 'click', function(e) { 
+                if (_locked) {
+                    UnlockBuild(e.target);
+                } else {
+                    LockBuild(e.target);
+                }
+            });
+
+            on(dom.byId('clear-button'), 'click', function() { Clear(); });
+            query('#clear-tree1, #clear-tree2, #clear-tree3').on('click', function(e) {
+                if (e.target.id == 'clear-tree1') {
+                    Clear(1);
+                } else if (e.target.id == 'clear-tree2') {
+                    Clear(2);
+                } else if (e.target.id == 'clear-tree3') {
+                    Clear(3);
+                }
+            });
+
+
+            ShowPoints();
+            CheckImages();
+            CreateLink();
         });
+    }
 
+    var UnlockBuild = function(node) {
+        require(['dojo/dom-style'], function(style) {
+            node.innerHTML = 'Lock Build';
+            style.set(node, 'backgroundPosition', '5px 5px');
+            _locked = false;
+        });
+    }
 
+    var LockBuild = function(node) {
+        require(['dojo/dom-style'], function(style) {
+            node.innerHTML = 'Unlock Build';
+            style.set(node, 'backgroundPosition', '-152px 5px');
+            _locked = true;
+        });
     }
 
     return {
